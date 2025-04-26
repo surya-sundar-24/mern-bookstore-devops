@@ -15,19 +15,27 @@ pipeline {
 
     stage('Build Frontend') {
       steps {
-        dir('frontend') {
-          sh 'npm install'
-          sh 'npm run build'
-          sh 'docker build -t $FRONT_IMG .'
+        script {
+          docker.image('node:16').inside {
+            dir('frontend') {
+              sh 'npm install'
+              sh 'npm run build'
+              sh 'docker build -t $FRONT_IMG .'
+            }
+          }
         }
       }
     }
 
     stage('Build Backend') {
       steps {
-        dir('backend') {
-          sh 'npm install'
-          sh 'docker build -t $BACK_IMG .'
+        script {
+          docker.image('node:16').inside {
+            dir('backend') {
+              sh 'npm install'
+              sh 'docker build -t $BACK_IMG .'
+            }
+          }
         }
       }
     }
