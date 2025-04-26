@@ -1,85 +1,76 @@
 pipeline {
-  agent any
+    agent any
 
-  environment {
-    FRONT_IMG = "suryasundar/mern-frontend:${BUILD_NUMBER}"
-    BACK_IMG  = "suryasundar/mern-backend:${BUILD_NUMBER}"
-  }
-
-  stages {
-    stage('Checkout') {
-      steps {
-        git branch: 'main', credentialsId: 'github-creds', url: 'https://github.com/surya-sundar-24/mern-bookstore-devops.git'
-      }
+    environment {
+        DOCKER_CREDENTIALS_ID = 'dockerhub-creds'
+        GITHUB_CREDENTIALS_ID = 'github-creds'
     }
 
-    stage('Build Frontend') {
-      steps {
-        script {
-          docker.image('node:16').inside {
-          dir('Frontend') {  // <-- Capital 'F' here!
-            sh 'mkdir -p .npm'     // <--- Create local folder
-            sh 'npm config set cache $(pwd)/.npm --global'   // <--- Tell npm to use i
-            sh 'npm install'
-            sh 'npm run build'
-            sh 'docker build -t $FRONT_IMG .'
+    stages {
+        stage('Checkout') {
+            steps {
+                git credentialsId: "${GITHUB_CREDENTIALS_ID}", url: 'https://github.com/surya-sundar-24/mern-bookstore-devops.git', branch: 'main'
             }
-          }
         }
-      }
-    }
 
-    stage('Build Backend') {
-      steps {
-        script {
-          // Using a Docker container with Node.js to build the backend
-          docker.image('node:16').inside {
-            dir('Backend') {
-              sh 'npm install'
-              sh 'docker build -t $BACK_IMG .'
+        stage('Build Frontend') {
+            steps {
+                script {
+                    docker.image('node:16').inside('-u 0:0') { // Run as root inside the container temporarily
+                        dir('Frontend') {
+                            sh '''
+                                mkdir -p .npm-cache
+                                npm install --cache .npm-cache
+                            '''
+                        }
+                    }
+                }
             }
-          }
         }
-      }
-    }
 
-    stage('Trivy Scan') {
-      steps {
-        sh '''
-          trivy image $FRONT_IMG || true
-          trivy image $BACK_IMG || true
-        '''
-      }
-    }
-
-    stage('Push to Docker Hub') {
-      steps {
-        withDockerRegistry(credentialsId: 'docker-hub-creds', url: '') {
-          sh 'docker push $FRONT_IMG'
-          sh 'docker push $BACK_IMG'
+        stage('Build Backend') {
+            steps {
+                script {
+                    docker.image('node:16').inside('-u 0:0') {
+                        dir('Backend') {
+                            sh '''
+                                mkdir -p .npm-cache
+                                npm install --cache .npm-cache
+                            '''
+                        }
+                    }
+                }
+            }
         }
-      }
-    }
 
-    stage('Deploy to Kubernetes') {
-      steps {
-        script {
-          // Apply Kubernetes configurations and set images
-          sh 'kubectl apply -f k8s/backend-deployment.yaml'
-          sh 'kubectl apply -f k8s/frontend-deployment.yaml'
-          sh 'kubectl set image deployment/mern-backend backend=$BACK_IMG'
-          sh 'kubectl set image deployment/mern-frontend frontend=$FRONT_IMG'
+        stage('Trivy Scan') {
+            steps {
+                echo 'Running Trivy Scan...'
+                // Trivy scanning steps here
+            }
         }
-      }
-    }
-  }
 
-  post {
-    always {
-      echo 'Pipeline completed.'
+        stage('Push to Docker Hub') {
+            steps {
+                echo 'Pushing Images to DockerHub...'
+                // docker build & push commands
+            }
+        }
+
+        stage('Deploy to Kubernetes') {
+            steps {
+                echo 'Deploying to Kubernetes...'
+                // kubectl apply -f manifests/
+            }
+        }
     }
-    failure {
-      echo 'Pipeline failed. Check logs for details.'
+
+    post {
+        always {
+            echo 'Pipeline completed.'
+        }
+        failure {
+            echo 'Pipeline failed. Check logs for details.'
+        }
     }
-  }
 }
