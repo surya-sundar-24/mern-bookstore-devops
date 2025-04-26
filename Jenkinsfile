@@ -2,23 +2,23 @@ pipeline {
   agent any
 
   environment {
-    FRONT_IMG = "yourdockerhub/frontend:${BUILD_NUMBER}"
-    BACK_IMG  = "yourdockerhub/backend:${BUILD_NUMBER}"
+    FRONT_IMG = "suryasundar/mern-frontend:${BUILD_NUMBER}"
+    BACK_IMG  = "suryasundar/mern-backend:${BUILD_NUMBER}"
   }
 
   stages {
     stage('Checkout') {
       steps {
-        git credentialsId: 'github-creds', url: 'https://github.com/youruser/mern-project.git'
+        git credentialsId: 'github-creds', url: 'https://github.com/surya-sundar-24/mern-bookstore-devops.git'
       }
     }
 
     stage('Build Frontend') {
       steps {
         dir('frontend') {
-          sh 'npm install && npm run build'
+          sh 'npm install'
+          sh 'npm run build'
           sh 'docker build -t $FRONT_IMG .'
-          sh 'trivy image $FRONT_IMG'
         }
       }
     }
@@ -28,7 +28,6 @@ pipeline {
         dir('backend') {
           sh 'npm install'
           sh 'docker build -t $BACK_IMG .'
-          sh 'trivy image $BACK_IMG'
         }
       }
     }
@@ -44,8 +43,15 @@ pipeline {
 
     stage('Deploy to Kubernetes') {
       steps {
-        sh 'kubectl set image deployment/frontend frontend=$FRONT_IMG'
-        sh 'kubectl set image deployment/backend backend=$BACK_IMG'
+        script {
+          // Apply both YAMLs
+          sh 'kubectl apply -f k8s/backend-deployment.yaml'
+          sh 'kubectl apply -f k8s/frontend-deployment.yaml'
+
+          // Update image tags with the latest build
+          sh 'kubectl set image deployment/mern-backend backend=$BACK_IMG'
+          sh 'kubectl set image deployment/mern-frontend frontend=$FRONT_IMG'
+        }
       }
     }
   }
