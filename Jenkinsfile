@@ -9,7 +9,7 @@ pipeline {
   stages {
     stage('Checkout') {
       steps {
-        git credentialsId: 'github-creds', url: 'https://github.com/surya-sundar-24/mern-bookstore-devops.git'
+        git branch: 'main', credentialsId: 'github-creds', url: 'https://github.com/surya-sundar-24/mern-bookstore-devops.git'
       }
     }
 
