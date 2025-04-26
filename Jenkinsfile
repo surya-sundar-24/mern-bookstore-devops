@@ -18,6 +18,8 @@ pipeline {
         script {
           docker.image('node:16').inside {
           dir('Frontend') {  // <-- Capital 'F' here!
+            sh 'mkdir -p .npm'     // <--- Create local folder
+            sh 'npm config set cache $(pwd)/.npm --global'   // <--- Tell npm to use i
             sh 'npm install'
             sh 'npm run build'
             sh 'docker build -t $FRONT_IMG .'
