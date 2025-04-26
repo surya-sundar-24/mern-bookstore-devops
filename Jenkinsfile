@@ -16,6 +16,7 @@ pipeline {
     stage('Build Frontend') {
       steps {
         script {
+          // Using a Docker container with Node.js to build the frontend
           docker.image('node:16').inside {
             dir('frontend') {
               sh 'npm install'
@@ -30,6 +31,7 @@ pipeline {
     stage('Build Backend') {
       steps {
         script {
+          // Using a Docker container with Node.js to build the backend
           docker.image('node:16').inside {
             dir('backend') {
               sh 'npm install'
@@ -61,6 +63,7 @@ pipeline {
     stage('Deploy to Kubernetes') {
       steps {
         script {
+          // Apply Kubernetes configurations and set images
           sh 'kubectl apply -f k8s/backend-deployment.yaml'
           sh 'kubectl apply -f k8s/frontend-deployment.yaml'
           sh 'kubectl set image deployment/mern-backend backend=$BACK_IMG'
