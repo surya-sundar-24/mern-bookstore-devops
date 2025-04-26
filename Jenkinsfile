@@ -16,12 +16,11 @@ pipeline {
     stage('Build Frontend') {
       steps {
         script {
-          // Using a Docker container with Node.js to build the frontend
           docker.image('node:16').inside {
-            dir('frontend') {
-              sh 'npm install'
-              sh 'npm run build'
-              sh 'docker build -t $FRONT_IMG .'
+          dir('Frontend') {  // <-- Capital 'F' here!
+            sh 'npm install'
+            sh 'npm run build'
+            sh 'docker build -t $FRONT_IMG .'
             }
           }
         }
@@ -33,7 +32,7 @@ pipeline {
         script {
           // Using a Docker container with Node.js to build the backend
           docker.image('node:16').inside {
-            dir('backend') {
+            dir('Backend') {
               sh 'npm install'
               sh 'docker build -t $BACK_IMG .'
             }
