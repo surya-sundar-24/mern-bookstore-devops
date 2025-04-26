@@ -32,9 +32,18 @@ pipeline {
       }
     }
 
+    stage('Trivy Scan') {
+      steps {
+        sh '''
+          trivy image $FRONT_IMG || true
+          trivy image $BACK_IMG || true
+        '''
+      }
+    }
+
     stage('Push to Docker Hub') {
       steps {
-        withDockerRegistry([credentialsId: 'docker-hub-creds']) {
+        withDockerRegistry(credentialsId: 'docker-hub-creds', url: '') {
           sh 'docker push $FRONT_IMG'
           sh 'docker push $BACK_IMG'
         }
@@ -44,15 +53,21 @@ pipeline {
     stage('Deploy to Kubernetes') {
       steps {
         script {
-          // Apply both YAMLs
           sh 'kubectl apply -f k8s/backend-deployment.yaml'
           sh 'kubectl apply -f k8s/frontend-deployment.yaml'
-
-          // Update image tags with the latest build
           sh 'kubectl set image deployment/mern-backend backend=$BACK_IMG'
           sh 'kubectl set image deployment/mern-frontend frontend=$FRONT_IMG'
         }
       }
+    }
+  }
+
+  post {
+    always {
+      echo 'Pipeline completed.'
+    }
+    failure {
+      echo 'Pipeline failed. Check logs for details.'
     }
   }
 }
