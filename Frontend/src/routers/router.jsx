@@ -15,6 +15,7 @@ import Logout from "../pages/Logout";
 import ErrorPage from "../pages/shared/ErrorPage";
 import About from "../pages/about/About";
 import Blog from "../pages/blog/Blog";
+const BASE_URL = import.meta.env.VITE_API_URL;
 
 const router = createBrowserRouter([
   {
@@ -33,7 +34,7 @@ const router = createBrowserRouter([
       {
         path: "/book/:id",
         element: <SignleBook />,
-        loader: ({ params }) => fetch(`http://localhost:5000/book/${params.id}`)
+        loader: ({ params }) => fetch(`${import.meta.env.VITE_API_URL}/book/${params.id}`)
       },
       {
         path: "/about",
@@ -53,7 +54,7 @@ const router = createBrowserRouter([
       { path: "/admin/dashboard/upload", element: <UploadBook /> },
       { path: "/admin/dashboard/manage", element: <ManageBooks /> },
       { path: "/admin/dashboard/edit-books/:id", element: <EditBooks />,
-      loader: ({ params }) => fetch(`http://localhost:5000/book/${params.id}`)
+      loader: ({ params }) => fetch(`${import.meta.env.VITE_API_URL}/${params.id}`)
     },
     ],
   },
