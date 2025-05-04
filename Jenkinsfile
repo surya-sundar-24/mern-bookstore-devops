@@ -1,106 +1,75 @@
 pipeline {
     agent any
 
+    tools {
+        jdk 'java17'
+        nodejs 'node16'
+    }
+
     environment {
-        DOCKERHUB_CREDENTIALS = credentials('docker-hub-creds')
-        GITHUB_CREDENTIALS = credentials('github-creds')
+        SCANNER_HOME = tool 'sonar-scanner'
     }
 
     stages {
+        stage('Declarative: Tool Install') {
+            steps {
+                echo 'Installing tools (JDK, Node)...'
+            }
+        }
+
         stage('Clean Workspace') {
             steps {
                 cleanWs()
             }
         }
 
-        stage('Checkout') {
+        stage('Checkout from GitHub') {
             steps {
-                git credentialsId: 'github-creds', url: 'https://github.com/surya-sundar-24/mern-bookstore-devops.git', branch: 'main'
+                git branch: 'main', url: 'https://github.com/surya-sundar-24/mern-bookstore-devops.git'
             }
         }
 
-        stage('Build Frontend') {
+        stage('SonarQube Scan') {
             steps {
                 script {
-                    docker.image('node:16').inside {
-                        dir('Frontend') {
-                            sh '''
-                                echo "Cleaning old node_modules and lock file..."
-                                rm -rf node_modules package-lock.json || true
-                                rm -rf .npm-cache || true
-                                mkdir -p .npm-cache
-                                echo "Installing frontend dependencies..."
-                                npm install --cache .npm-cache || true
-                                echo "Building frontend..."
-                                npm run build
-                            '''
-                        }
+                    withSonarQubeEnv('sonar-server') {
+                        sh '''
+                            rm -rf .scannerwork
+                            $SCANNER_HOME/bin/sonar-scanner \
+                            -Dsonar.projectName=Game \
+                            -Dsonar.projectKey=Game
+                        '''
                     }
                 }
             }
         }
 
-        stage('Build Backend') {
+        stage('Quality Gate') {
             steps {
                 script {
-                    docker.image('node:16').inside {
-                        dir('Backend') {
-                            sh '''
-                                echo "Cleaning backend modules..."
-                                rm -rf node_modules package-lock.json || true
-                                echo "Installing backend dependencies..."
-                                npm install
-                            '''
-                        }
-                    }
+                    waitForQualityGate abortPipeline: false, credentialsId: 'Sonar-token'
                 }
             }
         }
 
-        stage('Trivy Scan') {
+        stage('Install Dependencies') {
             steps {
-                sh '''
-                    echo "Running Trivy scan..."
-                    trivy fs --exit-code 0 --severity MEDIUM,HIGH .
-                '''
+                sh 'npm install'
             }
         }
 
-        stage('Push to Docker Hub') {
+        stage('OWASP FS SCAN') {
             steps {
-                withCredentials([usernamePassword(credentialsId: 'docker-hub-creds', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
-                    sh '''
-                        echo "Logging in to Docker Hub..."
-                        echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin
-
-                        echo "Building Docker images..."
-                        docker build -t $DOCKER_USER/mern-frontend ./Frontend
-                        docker build -t $DOCKER_USER/mern-backend ./Backend
-
-                        echo "Pushing Docker images to Docker Hub..."
-                        docker push $DOCKER_USER/mern-frontend
-                        docker push $DOCKER_USER/mern-backend
-                    '''
-                }
+                dependencyCheck additionalArguments: '--scan ./ --disableYarnAudit --disableNodeAudit', odcInstallation: 'DC'
+                dependencyCheckPublisher pattern: '/dependency-check-report.xml'
             }
         }
 
-        stage('Deploy to Kubernetes') {
+        stage('TRIVY FS SCAN') {
             steps {
-                sh '''
-                    echo "Deploying to Kubernetes..."
-                    kubectl apply -f k8s/
-                '''
+                sh 'trivy fs . > trivyfs.txt'
             }
         }
-    }
 
-    post {
-        success {
-            echo '✅ Pipeline completed successfully!'
-        }
-        failure {
-            echo '❌ Pipeline failed. Check logs for details.'
-        }
     }
 }
