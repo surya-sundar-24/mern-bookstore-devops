@@ -7,6 +7,12 @@ pipeline {
     }
 
     stages {
+        stage('Clean Workspace') {
+            steps {
+                cleanWs()
+            }
+        }
+
         stage('Checkout') {
             steps {
                 git credentialsId: 'github-creds', url: 'https://github.com/surya-sundar-24/mern-bookstore-devops.git', branch: 'main'
@@ -20,7 +26,8 @@ pipeline {
                         dir('Frontend') {
                             sh '''
                                 echo "Cleaning old node_modules and lock file..."
-                                rm -rf node_modules package-lock.json .npm-cache
+                                rm -rf node_modules package-lock.json || true
+                                rm -rf .npm-cache || true
                                 mkdir -p .npm-cache
                                 echo "Installing frontend dependencies..."
                                 npm install --cache .npm-cache || true
@@ -40,7 +47,7 @@ pipeline {
                         dir('Backend') {
                             sh '''
                                 echo "Cleaning backend modules..."
-                                rm -rf node_modules package-lock.json
+                                rm -rf node_modules package-lock.json || true
                                 echo "Installing backend dependencies..."
                                 npm install
                             '''
