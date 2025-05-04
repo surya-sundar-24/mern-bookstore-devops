@@ -20,9 +20,11 @@ pipeline {
                         dir('Frontend') {
                             sh '''
                                 echo "Cleaning old node_modules and lock file..."
-                                rm -rf node_modules package-lock.json
+                                rm -rf node_modules package-lock.json .npm-cache
                                 mkdir -p .npm-cache
-                                npm install --cache .npm-cache
+                                echo "Installing frontend dependencies..."
+                                npm install --cache .npm-cache || true
+                                echo "Building frontend..."
                                 npm run build
                             '''
                         }
@@ -37,6 +39,8 @@ pipeline {
                     docker.image('node:16').inside {
                         dir('Backend') {
                             sh '''
+                                echo "Cleaning backend modules..."
+                                rm -rf node_modules package-lock.json
                                 echo "Installing backend dependencies..."
                                 npm install
                             '''
@@ -59,9 +63,14 @@ pipeline {
             steps {
                 withCredentials([usernamePassword(credentialsId: 'docker-hub-creds', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
                     sh '''
+                        echo "Logging in to Docker Hub..."
                         echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin
+
+                        echo "Building Docker images..."
                         docker build -t $DOCKER_USER/mern-frontend ./Frontend
                         docker build -t $DOCKER_USER/mern-backend ./Backend
+
+                        echo "Pushing Docker images to Docker Hub..."
                         docker push $DOCKER_USER/mern-frontend
                         docker push $DOCKER_USER/mern-backend
                     '''
@@ -72,6 +81,7 @@ pipeline {
         stage('Deploy to Kubernetes') {
             steps {
                 sh '''
+                    echo "Deploying to Kubernetes..."
                     kubectl apply -f k8s/
                 '''
             }
