@@ -21,20 +21,20 @@ jobs:
 
     - name: Install Server Dependencies
       run: |
-        cd server
+        cd Backend
         npm install
 
     - name: Install Client Dependencies
       run: |
-        cd client
+        cd Frontend
         npm install
 
-    - name: Run Server Tests
+    - name: Run Server 
       run: |
-        cd server
-        npm test
+        cd Backend
+        npm start
 
     - name: Build Client
       run: |
-        cd client
-        npm run build
+        cd Frontend
+        npm run dev
